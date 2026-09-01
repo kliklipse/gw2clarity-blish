@@ -17,5 +17,5 @@ public class BuffStateService
         BuffsChanged?.Invoke();
     }
 
-    public int GetStacks(uint buffId) => _activeStacks.GetValueOrDefault(buffId, 0);
+    public int GetStacks(uint buffId) => _activeStacks.TryGetValue(buffId, out var value) ? value : 0;
 }

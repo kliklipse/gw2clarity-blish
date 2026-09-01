@@ -53,7 +53,7 @@ public class Style
 
     private void BuildCache()
     {
-        Array.Clear(_appearanceCache);
+        Array.Clear(_appearanceCache, 0, _appearanceCache.Length);
 
         foreach (var t in Thresholds.AsEnumerable().Reverse())
         {
@@ -79,7 +79,7 @@ public class Style
         float glowX, glowY;
         if (app.GlowPulse.X > 0f)
         {
-            var x = MathF.Sin((float)nowMs / 1000f * 2f * MathF.PI * app.GlowPulse.Y) * 0.5f + 0.5f;
+            var x = (float)Math.Sin((float)nowMs / 1000f * 2f * Math.PI * app.GlowPulse.Y) * 0.5f + 0.5f;
             glowX = ((1f - app.GlowPulse.X) + app.GlowPulse.X * x) * app.GlowSize;
             glowY = app.GlowSize;
         }

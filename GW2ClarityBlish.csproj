@@ -1,10 +1,19 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- netstandard2.0 : compatible a la fois avec les tests xUnit (net8.0) et un futur
+         host de module Blish HUD reel (net472, cf. packages.config du Module-Template officiel) -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Non incluses nativement dans netstandard2.0 (le sont dans net8.0/net472+BlishHUD) -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Net.Http.Json" Version="8.0.1" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Exclut le projet de tests imbrique du glob par defaut du classlib racine -->
