@@ -139,6 +139,7 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
         _gridRenderer = new GridRendererControl(GetVisibleGrids, GetStyles, _buffStateService.GetStacks)
         {
             Parent = GameService.Graphics.SpriteScreen,
+            BorderGlowEffect = TryLoadBorderGlowEffect(),
         };
 
         _cornerIcon = new CornerIcon
@@ -220,6 +221,27 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
         }
 
         return visible;
+    }
+
+    /// <summary>
+    /// Charge le shader optionnel de bordure/glow (voir Module/ref/rendering/GridEffect.mgfx
+    /// et le commentaire de tete de Module/Rendering/GridEffect.fx pour le detail du wiring).
+    /// Un echec ici (fichier .mgfx absent ou corrompu) ne doit jamais empecher le module de se
+    /// charger : <see cref="GridRendererControl"/> retombe alors sur son rendu par composition
+    /// de sprites (voir GridRendererControl.BorderGlowEffect) plutot que de planter.
+    /// </summary>
+    private Effect? TryLoadBorderGlowEffect()
+    {
+        try
+        {
+            return ModuleParameters.ContentsManager.GetEffect("rendering/GridEffect.mgfx");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn(ex, "Shader optionnel rendering/GridEffect.mgfx introuvable ou invalide : " +
+                              "rendu par composition de sprites (sans shader) utilise a la place.");
+            return null;
+        }
     }
 
     /// <summary>
