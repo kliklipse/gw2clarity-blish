@@ -3,6 +3,12 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Outillage local Claude Code / GitNexus (pas partage sur ce repo)
+.claude/
+AGENTS.md
+CLAUDE.md
+.gitnexus/
+
 # dotenv files
 .env
 
