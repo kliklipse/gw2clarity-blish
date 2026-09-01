@@ -61,6 +61,14 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
     private bool _isInCombat;
     private bool _isInCompetitiveMode;
 
+    // ArcDpsV2 se connecte de façon asynchrone après le chargement du module (quelques centaines
+    // de ms observees en test reel) : verifier une seule fois dans LoadAsync() donnait un faux
+    // avertissement systematique ("pas actif") avant meme que la connexion ait eu le temps de
+    // s'etablir. On laisse une marge avant de conclure a une vraie absence d'ArcDPS.
+    private static readonly TimeSpan ArcDpsGracePeriod = TimeSpan.FromSeconds(10);
+    private TimeSpan _timeSinceLoad;
+    private bool _arcDpsStatusLogged;
+
     [ImportingConstructor]
     public GW2ClarityModule([Import("ModuleParameters")] ModuleParameters moduleParameters)
         : base(moduleParameters)
@@ -118,18 +126,6 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
 
         _arcdpsBuffTracker.Start();
 
-        if (!GameService.ArcDpsV2.Running)
-        {
-            // Jamais de "ok" par defaut (meme principe que les sondes de sante forge-app) :
-            // aucun stack ne sera simule tant qu'ArcDPS (+ le pont natif arcdps_bhud.dll) n'est
-            // pas reellement connecte - les Grids pilotees par buff resteront simplement vides,
-            // sans faire planter le module ni afficher un faux etat "actif".
-            _logger.Warn(
-                "ArcDPS n'est pas actif (GameService.ArcDpsV2.Running == false) : les grilles " +
-                "pilotees par buff resteront vides jusqu'a ce qu'ArcDPS et son pont natif " +
-                "arcdps_bhud.dll soient detectes. Aucune valeur n'est simulee par defaut.");
-        }
-
         using (var graphicsContext = GameService.Graphics.LendGraphicsDeviceContext())
         {
             var cursorTexture = CreateCursorTexture(graphicsContext.GraphicsDevice);
@@ -164,6 +160,31 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
         // plusieurs fois par frame pour la meme valeur.
         _isInCombat = GameService.Gw2Mumble.PlayerCharacter.IsInCombat;
         _isInCompetitiveMode = GameService.Gw2Mumble.CurrentMap.IsCompetitiveMode;
+
+        if (!_arcDpsStatusLogged)
+        {
+            if (GameService.ArcDpsV2.Running)
+            {
+                _arcDpsStatusLogged = true;
+            }
+            else
+            {
+                _timeSinceLoad += gameTime.ElapsedGameTime;
+                if (_timeSinceLoad >= ArcDpsGracePeriod)
+                {
+                    _arcDpsStatusLogged = true;
+                    // Jamais de "ok" par defaut (meme principe que les sondes de sante forge-app) :
+                    // aucun stack ne sera simule tant qu'ArcDPS (+ le pont natif arcdps_bhud.dll)
+                    // n'est pas reellement connecte - les Grids pilotees par buff resteront
+                    // simplement vides, sans faire planter le module ni afficher un faux etat "actif".
+                    _logger.Warn(
+                        "ArcDPS toujours pas actif apres " + ArcDpsGracePeriod.TotalSeconds + "s " +
+                        "(GameService.ArcDpsV2.Running == false) : les grilles pilotees par buff " +
+                        "resteront vides jusqu'a ce qu'ArcDPS et son pont natif arcdps_bhud.dll " +
+                        "soient detectes. Aucune valeur n'est simulee par defaut.");
+                }
+            }
+        }
     }
 
     protected override void Unload()
