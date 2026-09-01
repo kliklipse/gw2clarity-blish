@@ -7,27 +7,27 @@ namespace GW2ClarityBlish.Module.Rendering;
 
 /// <summary>
 /// Curseur custom qui suit la souris et se dessine par-dessus les Grids (ZIndex maximal).
-/// Masque le curseur logiciel de Blish HUD tant qu'il est actif pour eviter le double-affichage.
 /// </summary>
+/// <remarks>
+/// Ne masque PAS le curseur logiciel (<c>Input.Mouse.CursorIsVisible</c>) : Blish HUD relit cet
+/// etat systeme chaque frame dans son propre <c>MouseHandler.Update()</c> pour decider si les
+/// clics doivent etre routes vers son UI (<c>if (!CursorIsVisible) return false;</c>, cf. code
+/// source officiel). Le masquer en continu depuis ce control cassait le clic sur TOUTE
+/// l'interface Blish HUD (la notre et la sienne) - constate en test reel le 2026-09-01, symptome :
+/// clics ignores, necessitant plusieurs tentatives ou un alt-tab pour se debloquer. Desactive par
+/// defaut (<see cref="CursorEnabled"/> = false) tant qu'aucun mode d'edition ne l'utilise
+/// reellement (l'original GW2Clarity ne l'affichait que pendant l'edition d'une Grid attachee a
+/// la souris, pas en permanence).
+/// </remarks>
 public class CursorControl : Control
 {
     private readonly Texture2D _cursorTexture;
-    private bool _cursorEnabled = true;
 
     /// <summary>
-    /// Active/desactive l'affichage du curseur custom. A la desactivation, le curseur
-    /// logiciel de Blish HUD est restaure pour ne pas laisser l'utilisateur sans curseur.
+    /// Active/desactive l'affichage du curseur custom (superpose au curseur systeme, qui reste
+    /// toujours visible - voir remarque de la classe).
     /// </summary>
-    public bool CursorEnabled
-    {
-        get => _cursorEnabled;
-        set
-        {
-            _cursorEnabled = value;
-            if (!value)
-                Input.Mouse.CursorIsVisible = true;
-        }
-    }
+    public bool CursorEnabled { get; set; }
 
     public CursorControl(Texture2D cursorTexture)
     {
@@ -53,11 +53,8 @@ public class CursorControl : Control
         Location = Point.Zero;
         Size = screen.Size;
 
-        if (!_cursorEnabled)
+        if (!CursorEnabled)
             return;
-
-        // Masque le curseur logiciel de Blish HUD pendant qu'on dessine le notre par-dessus.
-        Input.Mouse.CursorIsVisible = false;
 
         var mouse = Input.Mouse.Position;
         var dest = new Rectangle(mouse.X, mouse.Y, _cursorTexture.Width, _cursorTexture.Height);
