@@ -1,11 +1,13 @@
 {
+  "manifest_version": 1,
   "name": "GW2Clarity",
   "namespace": "kliklipse.gw2clarity",
+  "package": "GW2ClarityBlish.Module",
   "version": "0.1.0",
   "author": "kliklipse",
   "description": "Grilles de suivi de buffs pour raid/strike, portage GW2Clarity pour Blish HUD.",
+  "contributors": ["kliklipse"],
   "dependencies": {
-    "Blish HUD": ">=1.0.0",
-    "ArcDPS Bridge": ">=1.0.0"
+    "bh.blishhud": ">=1.3.0"
   }
 }
