@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Text.Json.Serialization;
 
 public class ResolvedAppearance
 {
@@ -18,17 +19,36 @@ public class ResolvedAppearance
 public class Style
 {
     private const int CacheSize = 100;
-    public string Name { get; }
-    public IReadOnlyList<Threshold> Thresholds { get; }
+    public string Name { get; set; } = string.Empty;
+    public List<Threshold> Thresholds { get; set; } = new();
 
-    private readonly Appearance?[] _appearanceCache = new Appearance?[CacheSize];
+    private Appearance?[] _appearanceCache = new Appearance?[CacheSize];
     private Appearance? _appearanceAbove;
 
+    // Constructeur sans paramètres pour System.Text.Json
+    public Style()
+    {
+    }
+
+    // Constructeur public original pour utilisation directe
     public Style(string name, IEnumerable<Threshold> thresholds)
     {
         Name = name;
         Thresholds = thresholds.ToList();
         BuildCache();
+    }
+
+    // Called after deserialization to rebuild the cache
+    [JsonIgnore]
+    private bool _cacheBuilt = false;
+
+    private void EnsureCacheBuilt()
+    {
+        if (!_cacheBuilt)
+        {
+            BuildCache();
+            _cacheBuilt = true;
+        }
     }
 
     private void BuildCache()
@@ -47,6 +67,8 @@ public class Style
 
     public ResolvedAppearance? Resolve(int count, long nowMs)
     {
+        EnsureCacheBuilt();
+
         if (count < 0)
             return null;
 
