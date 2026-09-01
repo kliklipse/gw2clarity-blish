@@ -21,6 +21,12 @@
     <Compile Remove="Tests/**/*.*" />
     <EmbeddedResource Remove="Tests/**/*.*" />
     <None Remove="Tests/**/*.*" />
+
+    <!-- Exclut le host de module (net472 + BlishHUD) du glob par defaut du classlib racine -->
+    <Compile Remove="Module/**/*.cs" />
+    <Compile Remove="Module/**/*.*" />
+    <EmbeddedResource Remove="Module/**/*.*" />
+    <None Remove="Module/**/*.*" />
   </ItemGroup>
 
 </Project>

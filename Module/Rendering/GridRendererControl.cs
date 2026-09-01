@@ -1,0 +1,230 @@
+using System;
+using System.Collections.Generic;
+using Blish_HUD;
+using Blish_HUD.Controls;
+using GW2ClarityBlish.Models;
+using GW2ClarityBlish.Rendering;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using MonoGame.Extended.BitmapFonts;
+
+namespace GW2ClarityBlish.Module.Rendering;
+
+/// <summary>
+/// Control Blish HUD qui dessine, chaque frame, toutes les Grid actives par-dessus le jeu.
+/// La logique de calcul (position, tint, bordure, glow) vit entierement dans
+/// <see cref="GridRenderer.BuildInstances"/> (projet racine, pure/testee) - cette classe ne
+/// fait que convertir chaque <see cref="GridInstanceData"/> en appels SpriteBatch.
+/// </summary>
+/// <remarks>
+/// Blish HUD gere lui-meme le SpriteBatch.Begin()/End() autour de Paint() (configurable via
+/// <see cref="Control.SpriteBatchParameters"/>) : ce control ne doit donc jamais appeler
+/// Begin()/End() lui-meme.
+/// </remarks>
+public class GridRendererControl : Control
+{
+    private readonly Func<IReadOnlyList<Grid>> _gridsProvider;
+    private readonly Func<IReadOnlyList<Style>> _stylesProvider;
+    private readonly Func<uint, int> _stackLookup;
+
+    private Texture2D? _pixel;
+
+    /// <summary>
+    /// Atlas contenant les icones de tous les buffs, adresse par <see cref="Buff.Uv"/>
+    /// (origine normalisee du coin haut-gauche de la tuile dans l'atlas). Construit et
+    /// assigne par le wiring du Module (tache 11) une fois les icones telechargees via
+    /// <see cref="GW2ClarityBlish.Services.BuffCatalogService"/>. Tant qu'il vaut null, un
+    /// rectangle plein tinte est dessine a la place de l'icone (position/tint/bordure/glow
+    /// restent verifiables visuellement).
+    /// </summary>
+    public Texture2D? IconAtlas { get; set; }
+
+    /// <summary>
+    /// Taille d'une tuile dans <see cref="IconAtlas"/>, en fraction normalisee (0..1) de
+    /// l'atlas. A synchroniser avec la convention utilisee pour generer les <see cref="Buff.Uv"/>.
+    /// </summary>
+    public Vector2 AtlasTileSize { get; set; } = new(1f / 16f, 1f / 16f);
+
+    /// <summary>
+    /// Shader optionnel (voir GridEffect.fx) pour la bordure/glow. Si null, la bordure et le
+    /// glow sont dessines par simple composition de sprites (rectangles), ce qui reste
+    /// visuellement correct meme sans shader compile.
+    /// </summary>
+    public Effect? BorderGlowEffect
+    {
+        get => SpriteBatchParameters?.Effect;
+        set => SpriteBatchParameters = value is null ? null : new SpriteBatchParameters(effect: value);
+    }
+
+    public GridRendererControl(
+        Func<IReadOnlyList<Grid>> gridsProvider,
+        Func<IReadOnlyList<Style>> stylesProvider,
+        Func<uint, int> stackLookup)
+    {
+        _gridsProvider = gridsProvider ?? throw new ArgumentNullException(nameof(gridsProvider));
+        _stylesProvider = stylesProvider ?? throw new ArgumentNullException(nameof(stylesProvider));
+        _stackLookup = stackLookup ?? throw new ArgumentNullException(nameof(stackLookup));
+
+        // Overlay plein ecran : les Grid sont positionnees en coordonnees ecran absolues,
+        // donc ce control ne doit pas etre clippe ni bloquer d'input.
+        ClipsBounds = false;
+    }
+
+    protected override void Paint(SpriteBatch spriteBatch, Rectangle bounds)
+    {
+        SyncToScreen();
+
+        var screenSize = new System.Numerics.Vector2(bounds.Width, bounds.Height);
+        if (screenSize.X <= 0f || screenSize.Y <= 0f)
+            return;
+
+        _pixel ??= CreatePixel(spriteBatch.GraphicsDevice);
+
+        var mousePoint = Input.Mouse.Position;
+        var mouse = new System.Numerics.Vector2(mousePoint.X, mousePoint.Y);
+        var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        var grids = _gridsProvider();
+        var styles = _stylesProvider();
+        if (grids.Count == 0 || styles.Count == 0)
+            return;
+
+        foreach (var grid in grids)
+        {
+            var activeStacks = CollectStacks(grid);
+            var instances = GridRenderer.BuildInstances(grid, styles, activeStacks, screenSize, mouse, nowMs);
+
+            foreach (var instance in instances)
+                DrawInstance(spriteBatch, instance, screenSize);
+        }
+    }
+
+    /// <summary>
+    /// Garde le control cale sur la resolution courante de GW2 (peut changer si le joueur
+    /// redimensionne la fenetre ou change de resolution en cours de session).
+    /// </summary>
+    private void SyncToScreen()
+    {
+        var screen = Graphics.SpriteScreen;
+        Location = Point.Zero;
+        Size = screen.Size;
+    }
+
+    /// <summary>
+    /// Reconstruit le dictionnaire (buffId -> stacks) attendu par
+    /// <see cref="GridRenderer.BuildInstances"/>, a partir du lookup fourni par
+    /// BuffStateService. On ne peuple que les buffs reellement references par cette Grid
+    /// (Buff.GetStacks ne consulte que Id + ExtraIds, jamais GridItem.AdditionalBuffs).
+    /// </summary>
+    private Dictionary<uint, int> CollectStacks(Grid grid)
+    {
+        var stacks = new Dictionary<uint, int>();
+
+        foreach (var item in grid.Items)
+        {
+            AddStack(stacks, item.Buff.Id);
+            foreach (var extraId in item.Buff.ExtraIds)
+                AddStack(stacks, extraId);
+        }
+
+        return stacks;
+    }
+
+    private void AddStack(Dictionary<uint, int> stacks, uint buffId)
+    {
+        if (stacks.ContainsKey(buffId))
+            return;
+
+        stacks[buffId] = _stackLookup(buffId);
+    }
+
+    private void DrawInstance(SpriteBatch spriteBatch, GridInstanceData instance, System.Numerics.Vector2 screenSize)
+    {
+        var x = instance.PosDims.X * screenSize.X;
+        var y = instance.PosDims.Y * screenSize.Y;
+        var w = instance.PosDims.Z * screenSize.X;
+        var h = instance.PosDims.W * screenSize.Y;
+
+        // GridItem.Position * Grid.Spacing donne le coin haut-gauche de la cellule : le
+        // rendu suit la meme convention (pas de recentrage additionnel).
+        var dest = new Rectangle((int)x, (int)y, (int)Math.Max(w, 1f), (int)Math.Max(h, 1f));
+
+        if (instance.GlowColor.W > 0f && (instance.GlowSize.X > 0f || instance.GlowSize.Y > 0f))
+            DrawGlow(spriteBatch, dest, instance.GlowColor, instance.GlowSize);
+
+        DrawIcon(spriteBatch, instance, dest);
+
+        if (instance.BorderThickness > 0f && instance.BorderColor.W > 0f)
+            DrawBorder(spriteBatch, dest, instance.BorderThickness, ToColor(instance.BorderColor));
+
+        DrawStackNumber(spriteBatch, instance, dest);
+    }
+
+    private void DrawIcon(SpriteBatch spriteBatch, GridInstanceData instance, Rectangle dest)
+    {
+        var tint = ToColor(instance.Tint);
+
+        if (IconAtlas is not null)
+        {
+            var atlasWidth = IconAtlas.Width;
+            var atlasHeight = IconAtlas.Height;
+            var src = new Rectangle(
+                (int)(instance.Uv.X * atlasWidth),
+                (int)(instance.Uv.Y * atlasHeight),
+                Math.Max(1, (int)(AtlasTileSize.X * atlasWidth)),
+                Math.Max(1, (int)(AtlasTileSize.Y * atlasHeight)));
+
+            spriteBatch.Draw(IconAtlas, dest, src, tint);
+        }
+        else
+        {
+            // Pas d'atlas branche pour l'instant (Module.cs / tache 11) : rectangle plein
+            // tinte a la place, pour que position/tint restent verifiables visuellement.
+            spriteBatch.Draw(_pixel, dest, tint);
+        }
+    }
+
+    private void DrawGlow(SpriteBatch spriteBatch, Rectangle dest, System.Numerics.Vector4 glowColor, System.Numerics.Vector2 glowSize)
+    {
+        var glowRect = dest;
+        glowRect.Inflate((int)Math.Round(glowSize.X), (int)Math.Round(glowSize.Y));
+        spriteBatch.Draw(_pixel, glowRect, ToColor(glowColor));
+    }
+
+    private void DrawBorder(SpriteBatch spriteBatch, Rectangle dest, float thickness, Color color)
+    {
+        var t = Math.Max(1, (int)Math.Round(thickness));
+
+        spriteBatch.Draw(_pixel, new Rectangle(dest.X, dest.Y, dest.Width, t), color); // haut
+        spriteBatch.Draw(_pixel, new Rectangle(dest.X, dest.Bottom - t, dest.Width, t), color); // bas
+        spriteBatch.Draw(_pixel, new Rectangle(dest.X, dest.Y, t, dest.Height), color); // gauche
+        spriteBatch.Draw(_pixel, new Rectangle(dest.Right - t, dest.Y, t, dest.Height), color); // droite
+    }
+
+    private void DrawStackNumber(SpriteBatch spriteBatch, GridInstanceData instance, Rectangle dest)
+    {
+        if (!instance.ShowNumber)
+            return;
+
+        var font = Content.DefaultFont14;
+        if (font is null)
+            return;
+
+        var text = instance.Stacks.ToString();
+        var size = font.MeasureString(text);
+        var position = new Vector2(
+            dest.Center.X - size.Width / 2f,
+            dest.Center.Y - size.Height / 2f);
+
+        spriteBatch.DrawString(font, text, position, Color.White, null);
+    }
+
+    private static Texture2D CreatePixel(GraphicsDevice device)
+    {
+        var pixel = new Texture2D(device, 1, 1);
+        pixel.SetData(new[] { Color.White });
+        return pixel;
+    }
+
+    private static Color ToColor(System.Numerics.Vector4 v) => new(v.X, v.Y, v.Z, v.W);
+}
