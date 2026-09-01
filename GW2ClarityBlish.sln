@@ -9,6 +9,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{0A77B2BA
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GW2ClarityBlish.Tests", "Tests\GW2ClarityBlish.Tests\GW2ClarityBlish.Tests.csproj", "{5D63364D-9796-4977-BE1D-01515F9A0CFA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GW2ClarityBlish.Module", "Module\GW2ClarityBlish.Module.csproj", "{D26956E6-BC17-4CF5-BD38-8B05AEEBF10F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +28,10 @@ Global
 		{5D63364D-9796-4977-BE1D-01515F9A0CFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D63364D-9796-4977-BE1D-01515F9A0CFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D63364D-9796-4977-BE1D-01515F9A0CFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D26956E6-BC17-4CF5-BD38-8B05AEEBF10F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D26956E6-BC17-4CF5-BD38-8B05AEEBF10F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D26956E6-BC17-4CF5-BD38-8B05AEEBF10F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D26956E6-BC17-4CF5-BD38-8B05AEEBF10F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{5D63364D-9796-4977-BE1D-01515F9A0CFA} = {0A77B2BA-400B-4E1E-B446-87B0CE1D1CD0}
