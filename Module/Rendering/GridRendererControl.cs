@@ -26,24 +26,9 @@ public class GridRendererControl : Control
     private readonly Func<IReadOnlyList<Grid>> _gridsProvider;
     private readonly Func<IReadOnlyList<Style>> _stylesProvider;
     private readonly Func<uint, int> _stackLookup;
+    private readonly Func<uint, Texture2D?> _iconLookup;
 
     private Texture2D? _pixel;
-
-    /// <summary>
-    /// Atlas contenant les icones de tous les buffs, adresse par <see cref="Buff.Uv"/>
-    /// (origine normalisee du coin haut-gauche de la tuile dans l'atlas). Construit et
-    /// assigne par le wiring du Module (tache 11) une fois les icones telechargees via
-    /// <see cref="GW2ClarityBlish.Services.BuffCatalogService"/>. Tant qu'il vaut null, un
-    /// rectangle plein tinte est dessine a la place de l'icone (position/tint/bordure/glow
-    /// restent verifiables visuellement).
-    /// </summary>
-    public Texture2D? IconAtlas { get; set; }
-
-    /// <summary>
-    /// Taille d'une tuile dans <see cref="IconAtlas"/>, en fraction normalisee (0..1) de
-    /// l'atlas. A synchroniser avec la convention utilisee pour generer les <see cref="Buff.Uv"/>.
-    /// </summary>
-    public Vector2 AtlasTileSize { get; set; } = new(1f / 16f, 1f / 16f);
 
     /// <summary>
     /// Shader optionnel (voir GridEffect.fx) pour la bordure/glow. Si null, la bordure et le
@@ -59,11 +44,13 @@ public class GridRendererControl : Control
     public GridRendererControl(
         Func<IReadOnlyList<Grid>> gridsProvider,
         Func<IReadOnlyList<Style>> stylesProvider,
-        Func<uint, int> stackLookup)
+        Func<uint, int> stackLookup,
+        Func<uint, Texture2D?> iconLookup)
     {
         _gridsProvider = gridsProvider ?? throw new ArgumentNullException(nameof(gridsProvider));
         _stylesProvider = stylesProvider ?? throw new ArgumentNullException(nameof(stylesProvider));
         _stackLookup = stackLookup ?? throw new ArgumentNullException(nameof(stackLookup));
+        _iconLookup = iconLookup ?? throw new ArgumentNullException(nameof(iconLookup));
 
         // Overlay plein ecran : les Grid sont positionnees en coordonnees ecran absolues,
         // donc ce control ne doit pas etre clippe ni bloquer d'input.
@@ -173,25 +160,12 @@ public class GridRendererControl : Control
     private void DrawIcon(SpriteBatch spriteBatch, GridInstanceData instance, Rectangle dest)
     {
         var tint = ToColor(instance.Tint);
+        var icon = _iconLookup(instance.BuffId);
 
-        if (IconAtlas is not null)
-        {
-            var atlasWidth = IconAtlas.Width;
-            var atlasHeight = IconAtlas.Height;
-            var src = new Rectangle(
-                (int)(instance.Uv.X * atlasWidth),
-                (int)(instance.Uv.Y * atlasHeight),
-                Math.Max(1, (int)(AtlasTileSize.X * atlasWidth)),
-                Math.Max(1, (int)(AtlasTileSize.Y * atlasHeight)));
-
-            spriteBatch.Draw(IconAtlas, dest, src, tint);
-        }
+        if (icon is not null)
+            spriteBatch.Draw(icon, dest, tint);
         else
-        {
-            // Pas d'atlas branche pour l'instant (Module.cs / tache 11) : rectangle plein
-            // tinte a la place, pour que position/tint restent verifiables visuellement.
-            spriteBatch.Draw(_pixel, dest, tint);
-        }
+            spriteBatch.Draw(_pixel, dest, tint); // pas d'icone connue pour ce buff : rectangle tinte, comme avant
     }
 
     private void DrawGlow(SpriteBatch spriteBatch, Rectangle dest, System.Numerics.Vector4 glowColor, System.Numerics.Vector2 glowSize)

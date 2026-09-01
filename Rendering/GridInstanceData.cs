@@ -5,6 +5,7 @@ namespace GW2ClarityBlish.Rendering;
 public struct GridInstanceData
 {
     public Vector4 PosDims;
+    public uint BuffId;
     public Vector2 Uv;
     public Vector2 NumberUv;
     public bool ShowNumber;

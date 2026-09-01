@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Blish_HUD.Controls;
@@ -202,10 +203,44 @@ public sealed class GridsView : View
 
         var posXBox = UiHelpers.AddLabeledTextBox(inner, "Position X", item.Position.X.ToString(), _ => { }, 60);
         var posYBox = UiHelpers.AddLabeledTextBox(inner, "Position Y", item.Position.Y.ToString(), _ => { }, 60);
-        var buffIdBox = UiHelpers.AddLabeledTextBox(inner, "Buff Id", item.Buff.Id.ToString(), _ => { }, 90);
-        var buffNameBox = UiHelpers.AddLabeledTextBox(inner, "Buff Name", item.Buff.Name, _ => { }, 140);
+
+        var currentBuffLabel = UiHelpers.AddLabel(inner, FormatBuffLabel(item.Buff));
+
+        // Picker par nom : recherche substring insensible a la casse dans BuffCatalog, resultats
+        // repeuples a chaque frappe (TextChanged) dans le Dropdown - meme pattern de controle que
+        // le Dropdown de Style ci-dessous, pour rester coherent visuellement.
+        var searchRow = UiHelpers.AddRow(inner);
+        UiHelpers.AddLabel(searchRow, "Rechercher un buff");
+        var buffSearchBox = new TextBox
+        {
+            PlaceholderText = "Nom du buff...",
+            Width = 140,
+            Parent = searchRow,
+        };
+        var buffResultsDropdown = new Dropdown { Parent = searchRow, Width = 160 };
+
+        // Fallback saisie libre : buffs absents du catalogue (ex: buffs de classe specifiques).
+        // Reste editable en plus du picker, comme avant pour "Buff Id".
+        var buffIdBox = UiHelpers.AddLabeledTextBox(inner, "Buff Id (avance)", item.Buff.Id.ToString(), _ => { }, 90);
         var maxStacksBox = UiHelpers.AddLabeledTextBox(inner, "Max Stacks", item.Buff.MaxStacks == int.MaxValue ? "" : item.Buff.MaxStacks.ToString(), _ => { }, 70);
         var extraIdsBox = UiHelpers.AddLabeledTextBox(inner, "Extra Ids (,)", string.Join(",", item.Buff.ExtraIds), _ => { }, 140);
+
+        // Nom courant du buff : suit soit l'entree du catalogue choisie via le picker, soit reste
+        // celui deja connu quand seul l'id avance est modifie a la main (voir CommitPositionAndBuff,
+        // qui retente une correspondance catalogue par id a chaque commit).
+        var currentBuffName = item.Buff.Name;
+        var currentResults = (IReadOnlyList<BuffCatalogEntry>)Array.Empty<BuffCatalogEntry>();
+
+        void RefreshResults()
+        {
+            currentResults = BuffCatalog.Search(buffSearchBox.Text);
+            buffResultsDropdown.Items.Clear();
+            foreach (var entry in currentResults)
+                buffResultsDropdown.Items.Add(entry.Name);
+        }
+
+        buffSearchBox.TextChanged += (_, _) => RefreshResults();
+        RefreshResults();
 
         // Position et Buff se reconstruisent atomiquement (tuple/record-like avec plusieurs
         // champs lies) : chaque champ commit relit l'etat courant de TOUS les champs de la
@@ -227,13 +262,31 @@ public sealed class GridsView : View
                         .Where(id => id.HasValue)
                         .Select(id => id!.Value));
 
-                item.Buff = new Buff(buffId, buffNameBox.Text, maxStacks, extraIds);
+                var catalogMatch = BuffCatalog.Entries.FirstOrDefault(entry => entry.Id == buffId);
+                if (catalogMatch is not null)
+                    currentBuffName = catalogMatch.Name;
+
+                item.Buff = new Buff(buffId, currentBuffName, maxStacks, extraIds);
+                currentBuffLabel.Text = FormatBuffLabel(item.Buff);
             }
 
             _context.SaveGrids();
         }
 
-        foreach (var box in new[] { posXBox, posYBox, buffIdBox, buffNameBox, maxStacksBox, extraIdsBox })
+        buffResultsDropdown.ValueChanged += (_, e) =>
+        {
+            var picked = currentResults.FirstOrDefault(entry => entry.Name == e.CurrentValue);
+            if (picked is null)
+                return;
+
+            // MaxStacks/ExtraIds deja saisis par l'utilisateur sont conserves : seul l'id/nom
+            // change, CommitPositionAndBuff relit les TextBox existantes pour le reste.
+            buffIdBox.Text = picked.Id.ToString();
+            currentBuffName = picked.Name;
+            CommitPositionAndBuff();
+        };
+
+        foreach (var box in new[] { posXBox, posYBox, buffIdBox, maxStacksBox, extraIdsBox })
         {
             box.EnterPressed += (_, _) => CommitPositionAndBuff();
             box.InputFocusChanged += (_, e) =>
@@ -267,4 +320,6 @@ public sealed class GridsView : View
             RebuildList();
         });
     }
+
+    private static string FormatBuffLabel(Buff buff) => $"Buff actuel : {buff.Name} (id {buff.Id})";
 }

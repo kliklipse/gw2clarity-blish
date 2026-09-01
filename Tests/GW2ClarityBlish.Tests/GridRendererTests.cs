@@ -21,6 +21,7 @@ public class GridRendererTests
 
         Assert.Single(instances);
         Assert.Equal(2, instances[0].Stacks);
+        Assert.Equal(1u, instances[0].BuffId);
     }
 
     [Fact]

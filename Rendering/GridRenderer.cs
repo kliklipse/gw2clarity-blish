@@ -28,6 +28,7 @@ public static class GridRenderer
             result.Add(new GridInstanceData
             {
                 PosDims = new Vector4(pos / screen, grid.Spacing.X / screen.X, grid.Spacing.Y / screen.Y),
+                BuffId = item.Buff.Id,
                 Uv = item.Buff.Uv,
                 ShowNumber = item.Buff.ShowNumber(count),
                 Stacks = count,

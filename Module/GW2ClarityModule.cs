@@ -56,6 +56,7 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
     private CornerIcon? _cornerIcon;
     private GridRendererControl? _gridRenderer;
     private CursorControl? _cursorControl;
+    private BuffIconProvider _buffIconProvider = null!;
 
     private bool _isInCombat;
     private bool _isInCompetitiveMode;
@@ -106,6 +107,8 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
 
         _configWindow = new ConfigWindow(_gridStore, _layoutStore, _styleStore, initialActiveLayoutIndex);
         _configWindow.Context.ActiveLayoutChanged += OnActiveLayoutChanged;
+
+        _buffIconProvider = new BuffIconProvider(ModuleParameters.ContentsManager);
     }
 
     protected override Task LoadAsync()
@@ -136,7 +139,7 @@ public sealed class GW2ClarityModule : Blish_HUD.Modules.Module
             };
         }
 
-        _gridRenderer = new GridRendererControl(GetVisibleGrids, GetStyles, _buffStateService.GetStacks)
+        _gridRenderer = new GridRendererControl(GetVisibleGrids, GetStyles, _buffStateService.GetStacks, _buffIconProvider.GetIcon)
         {
             Parent = GameService.Graphics.SpriteScreen,
             BorderGlowEffect = TryLoadBorderGlowEffect(),
