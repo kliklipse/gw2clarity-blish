@@ -6,7 +6,13 @@ namespace GW2ClarityBlish.Services;
 public class GridStore
 {
     private readonly string _path;
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    // IncludeFields = true est indispensable ici : Vector2/Vector4 (System.Numerics) et les
+    // tuples (int X, int Y) exposent leurs donnees comme des CHAMPS publics (X/Y/Z/W, Item1/Item2),
+    // pas des proprietes - System.Text.Json ignore les champs par defaut. Sans ce flag, Spacing,
+    // Offset, Position, Tint, Border, Glow etc. se serialisaient silencieusement en "{}" (tout a
+    // zero) a chaque sauvegarde, constate en test reel le 2026-09-02 (grille invisible : taille
+    // 1x1px, tint totalement transparent).
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, IncludeFields = true };
 
     public GridStore(string storageDirectory)
     {
@@ -27,7 +33,7 @@ public class GridStore
         try
         {
             var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<List<Grid>>(json) ?? new List<Grid>();
+            return JsonSerializer.Deserialize<List<Grid>>(json, JsonOptions) ?? new List<Grid>();
         }
         catch (JsonException)
         {

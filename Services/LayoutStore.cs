@@ -6,7 +6,10 @@ namespace GW2ClarityBlish.Services;
 public class LayoutStore
 {
     private readonly string _path;
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    // Voir GridStore.JsonOptions pour le detail : IncludeFields necessaire des qu'un modele
+    // touche System.Numerics (Vector2/Vector4) ou un tuple - par coherence avec les stores
+    // freres, meme si Layout n'en a pas directement aujourd'hui.
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, IncludeFields = true };
 
     public LayoutStore(string storageDirectory)
     {
@@ -27,7 +30,7 @@ public class LayoutStore
         try
         {
             var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<List<Layout>>(json) ?? new List<Layout>();
+            return JsonSerializer.Deserialize<List<Layout>>(json, JsonOptions) ?? new List<Layout>();
         }
         catch (JsonException)
         {

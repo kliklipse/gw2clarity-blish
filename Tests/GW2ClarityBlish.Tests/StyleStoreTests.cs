@@ -26,6 +26,31 @@ public class StyleStoreTests : IDisposable
     }
 
     [Fact]
+    public void SaveThenLoad_RoundTripsAppearanceVectors()
+    {
+        // Regression : Vector4/Vector2 (System.Numerics) exposent leurs donnees comme des
+        // CHAMPS publics (X/Y/Z/W), pas des proprietes - sans IncludeFields=true sur
+        // JsonSerializerOptions, Tint/Border/Glow/GlowPulse se serialisaient en "{}" (tout a
+        // zero, donc totalement transparent). Constate en test reel le 2026-09-02.
+        var store = new StyleStore(_dir);
+        var appearance = new Appearance
+        {
+            Tint = new System.Numerics.Vector4(1f, 0.5f, 0.2f, 0.9f),
+            Border = new System.Numerics.Vector4(0, 0, 0, 1),
+            GlowSize = 6f,
+            GlowPulse = new System.Numerics.Vector2(0.3f, 2f),
+        };
+        var style = new Style("Test", new[] { new Threshold(0, 99, appearance) });
+
+        store.Save(new List<Style> { style });
+        var loaded = store.Load();
+
+        var resolved = loaded[0].Resolve(count: 0, nowMs: 0);
+        Assert.NotNull(resolved);
+        Assert.Equal(new System.Numerics.Vector4(1f, 0.5f, 0.2f, 0.9f), resolved!.Tint);
+    }
+
+    [Fact]
     public void Load_ReturnsEmptyList_WhenFileMissing()
     {
         var store = new StyleStore(_dir);

@@ -6,7 +6,11 @@ namespace GW2ClarityBlish.Services;
 public class StyleStore
 {
     private readonly string _path;
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+    // Voir GridStore.JsonOptions pour le detail : sans IncludeFields, Appearance.Tint/Border/
+    // Glow/GlowPulse (System.Numerics.Vector2/Vector4, donnees en champs publics X/Y/Z/W) se
+    // serialisaient en "{}" (tout a zero, donc totalement transparent) - constate en test reel
+    // le 2026-09-02.
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true, IncludeFields = true };
 
     public StyleStore(string storageDirectory)
     {
@@ -27,7 +31,7 @@ public class StyleStore
         try
         {
             var json = File.ReadAllText(_path);
-            return JsonSerializer.Deserialize<List<Style>>(json) ?? new List<Style>();
+            return JsonSerializer.Deserialize<List<Style>>(json, JsonOptions) ?? new List<Style>();
         }
         catch (JsonException)
         {
