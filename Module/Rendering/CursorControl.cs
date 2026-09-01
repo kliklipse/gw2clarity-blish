@@ -38,6 +38,15 @@ public class CursorControl : Control
         ClipsBounds = false;
     }
 
+    /// <summary>
+    /// Sans cet override, ce control (plein ecran + ZIndex maximal, donc verifie en premier
+    /// par le hit-testing de Blish HUD) capturait par defaut tout l'input souris de l'ecran
+    /// entier (CaptureType.Mouse, comportement par defaut de tout Control) et bloquait
+    /// litteralement tous les clics vers le reste de l'overlay - fenetres non deplacables,
+    /// boutons inertes. Constate en test reel le 2026-09-01, cf. meme fix sur GridRendererControl.
+    /// </summary>
+    protected override CaptureType CapturesInput() => CaptureType.None;
+
     protected override void Paint(SpriteBatch spriteBatch, Rectangle bounds)
     {
         var screen = Graphics.SpriteScreen;

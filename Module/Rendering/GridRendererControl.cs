@@ -70,6 +70,16 @@ public class GridRendererControl : Control
         ClipsBounds = false;
     }
 
+    /// <summary>
+    /// Par defaut, un <see cref="Control"/> Blish HUD capture le clic de souris sur toute sa
+    /// surface (<c>CaptureType.Mouse</c>) et bloque tout ce qui est derriere - y compris le jeu
+    /// et les autres fenetres Blish HUD (voir doc XML du SDK). Ce control couvre l'ecran entier
+    /// et n'a aucun element interactif : sans cet override, il rendait injouable tout le reste
+    /// de l'overlay (fenetre de configuration non deplacable, boutons inertes) des qu'il etait
+    /// ajoute a l'ecran - constate en test reel le 2026-09-01.
+    /// </summary>
+    protected override CaptureType CapturesInput() => CaptureType.None;
+
     protected override void Paint(SpriteBatch spriteBatch, Rectangle bounds)
     {
         SyncToScreen();
