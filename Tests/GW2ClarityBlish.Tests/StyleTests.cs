@@ -8,8 +8,8 @@ public class StyleTests
     [Fact]
     public void Resolve_PicksHighestPriorityThreshold_OnOverlap()
     {
-        var highPriority = new Threshold(Min: 0, Max: 10, Appearance: new Appearance { Tint = new Vector4(1, 0, 0, 1) });
-        var lowPriority = new Threshold(Min: 0, Max: 99, Appearance: new Appearance { Tint = new Vector4(0, 1, 0, 1) });
+        var highPriority = new Threshold(0, 10, new Appearance { Tint = new Vector4(1, 0, 0, 1) });
+        var lowPriority = new Threshold(0, 99, new Appearance { Tint = new Vector4(0, 1, 0, 1) });
         var style = new Style("Test", new[] { highPriority, lowPriority });
 
         var resolved = style.Resolve(count: 5, nowMs: 0);
@@ -20,7 +20,7 @@ public class StyleTests
     [Fact]
     public void Resolve_UsesAppearanceAbove_WhenCountAtOrAbove100()
     {
-        var above100 = new Threshold(Min: 0, Max: 100, Appearance: new Appearance { Tint = new Vector4(0, 0, 1, 1) });
+        var above100 = new Threshold(0, 100, new Appearance { Tint = new Vector4(0, 0, 1, 1) });
         var style = new Style("Test", new[] { above100 });
 
         var resolved = style.Resolve(count: 250, nowMs: 0);
@@ -40,7 +40,7 @@ public class StyleTests
     public void Resolve_ComputesPulsingGlowSize_WhenGlowPulseSet()
     {
         var appearance = new Appearance { GlowSize = 10f, GlowPulse = new Vector2(0.5f, 1f) };
-        var style = new Style("Test", new[] { new Threshold(Min: 0, Max: 99, Appearance: appearance) });
+        var style = new Style("Test", new[] { new Threshold(0, 99, appearance) });
 
         var resolvedAtT0 = style.Resolve(count: 1, nowMs: 0)!;
         var resolvedAtQuarterCycle = style.Resolve(count: 1, nowMs: 250)!;
